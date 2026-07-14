@@ -30,6 +30,7 @@ C:\Users\ZXQ\AppData\Roaming\MPlayerProj\MPlayer\library.json
 - Recursive music scanning for `mp3`, `flac`, `wav`, `m4a`, `aac`, and `ogg`.
 - Persistent library saved as JSON and loaded on startup.
 - Playback controls: play, pause, stop, previous, next, seek slider, time display, volume, mute.
+- Audio visualization: `QAudioDecoder` decodes PCM samples for the current song, computes per-segment energy, and draws a live highlighted waveform above the seek slider.
 - Metadata display from `QMediaMetaData`: title, artist, album, embedded cover image.
 - Fallback cover image from `assets/img/album-placeholder-day.jpg` or `assets/img/album-placeholder-night.jpg`.
 - LRC lyrics loading by matching the audio filename with a same-name `.lrc` file.

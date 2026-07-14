@@ -4,9 +4,13 @@
 #include "seekslider.h"
 #include "lyricswidget.h"
 #include "transcodedialog.h"
+#include "waveformwidget.h"
 
 #include <algorithm>
 #include <QAbstractItemView>
+#include <QAudioBuffer>
+#include <QAudioDecoder>
+#include <QAudioFormat>
 #include <QDirIterator>
 #include <QApplication>
 #include <QCloseEvent>
@@ -43,6 +47,7 @@
 #include <QVBoxLayout>
 #include <QScrollBar>
 #include <QHBoxLayout>
+#include <QtMath>
 
 namespace
 {
@@ -67,6 +72,22 @@ void polishComboPopup(QComboBox *comboBox, const QString &backgroundColor)
         popupContainer->setWindowFlags(Qt::Popup | Qt::FramelessWindowHint);
     }
 }
+
+double sampleValue(const char *data, qsizetype sampleIndex, const QAudioFormat &format)
+{
+    switch (format.sampleFormat()) {
+    case QAudioFormat::UInt8:
+        return (static_cast<const quint8 *>(static_cast<const void *>(data))[sampleIndex] - 128) / 128.0;
+    case QAudioFormat::Int16:
+        return static_cast<const qint16 *>(static_cast<const void *>(data))[sampleIndex] / 32768.0;
+    case QAudioFormat::Int32:
+        return static_cast<const qint32 *>(static_cast<const void *>(data))[sampleIndex] / 2147483648.0;
+    case QAudioFormat::Float:
+        return static_cast<const float *>(static_cast<const void *>(data))[sampleIndex];
+    default:
+        return 0.0;
+    }
+}
 }
 
 MainWindow::MainWindow(QWidget *parent)
@@ -81,6 +102,7 @@ MainWindow::MainWindow(QWidget *parent)
     resize(1120, 720);
     buildUi();
     applyBaseStyle();
+    waveformDecoder = new QAudioDecoder(this);
     connectSignals();
     loadLibrary();
     audioPlayer.setVolume(volumeSlider->value());
@@ -267,6 +289,7 @@ void MainWindow::seekByKeyboard(qint64 deltaMs)
     keyboardSeekTargetMs = target;
     audioPlayer.seek(target);
     positionSlider->setValue(static_cast<int>(target));
+    waveformWidget->setPosition(target);
     lyricsWidget->setPosition(target);
     updateTimeLabel(target, currentDurationMs);
     savePlaybackSnapshot();
@@ -287,6 +310,7 @@ bool MainWindow::handleKeyboardSeekRelease(QKeyEvent *event)
 
     audioPlayer.seek(target);
     positionSlider->setValue(static_cast<int>(target));
+    waveformWidget->setPosition(target);
     lyricsWidget->setPosition(target);
     updateTimeLabel(target, currentDurationMs);
     savePlaybackSnapshot();
@@ -327,6 +351,9 @@ void MainWindow::buildUi()
     transcodeButton = new QPushButton("Transcode", this);
     transcodeButton->setObjectName("secondaryActionButton");
     transcodeButton->setCursor(Qt::PointingHandCursor);
+    playMvButton = new QPushButton("Play MV", this);
+    playMvButton->setObjectName("secondaryActionButton");
+    playMvButton->setCursor(Qt::PointingHandCursor);
     themeButton = new QPushButton(this);
     themeButton->setObjectName("themeToggleButton");
     themeButton->setFixedSize(42, 42);
@@ -342,6 +369,7 @@ void MainWindow::buildUi()
     statusLabel->hide();
     topLayout->addWidget(scanButton);
     topLayout->addWidget(transcodeButton);
+    topLayout->addWidget(playMvButton);
     topLayout->addWidget(helpButton);
     topLayout->addWidget(aboutButton);
     topLayout->addStretch();
@@ -364,7 +392,7 @@ void MainWindow::buildUi()
     collectionCombo->setCursor(Qt::PointingHandCursor);
     collectionCombo->setToolTip("Choose library, playlist, artist, album, or tag");
     polishComboPopup(collectionCombo, nightMode ? "#1f2530" : "#ffffff");
-    newPlaylistButton = new QPushButton("+ Playlist", this);
+    newPlaylistButton = new QPushButton("New Playlist", this);
     newPlaylistButton->setObjectName("compactActionButton");
     newPlaylistButton->setCursor(Qt::PointingHandCursor);
     newPlaylistButton->setToolTip("Create playlist");
@@ -475,6 +503,8 @@ void MainWindow::buildUi()
     positionSlider->setCursor(Qt::PointingHandCursor);
     positionSlider->setRange(0, 0);
     positionSlider->setToolTip("Click or drag to seek. Left/Right keys step 5 seconds.");
+    waveformWidget = new WaveformWidget(this);
+    waveformWidget->setToolTip("Decoded audio energy waveform");
     timeLabel = new QLabel("00:00 / 00:00", this);
     timeLabel->setObjectName("timeLabel");
     feedbackLabel = new QLabel(this);
@@ -506,6 +536,7 @@ void MainWindow::buildUi()
     playPauseButton->setIconSize(QSize(26, 26));
     scanButton->setToolTip("Add folder");
     transcodeButton->setToolTip("Transcode selected song");
+    playMvButton->setToolTip("Open MV player");
     themeButton->setToolTip("Switch to night mode");
     helpButton->setToolTip("Help and shortcuts");
     aboutButton->setToolTip("About MPlayer");
@@ -518,7 +549,12 @@ void MainWindow::buildUi()
     playbackLayout->addWidget(stopButton);
     playbackLayout->addWidget(nextButton);
     playbackLayout->addWidget(modeButton);
-    playbackLayout->addWidget(positionSlider, 1);
+    auto *progressStack = new QVBoxLayout;
+    progressStack->setContentsMargins(0, 0, 0, 0);
+    progressStack->setSpacing(2);
+    progressStack->addWidget(waveformWidget);
+    progressStack->addWidget(positionSlider);
+    playbackLayout->addLayout(progressStack, 1);
     playbackLayout->addWidget(timeLabel);
     playbackLayout->addWidget(feedbackLabel);
     playbackLayout->addWidget(muteButton);
@@ -539,6 +575,7 @@ void MainWindow::connectSignals()
 {
     connect(scanButton, &QPushButton::clicked, this, &MainWindow::scanFolder);
     connect(transcodeButton, &QPushButton::clicked, this, &MainWindow::transcodeSelectedTrack);
+    connect(playMvButton, &QPushButton::clicked, this, &MainWindow::showMvWindow);
     connect(themeButton, &QPushButton::clicked, this, &MainWindow::toggleTheme);
     connect(aboutButton, &QPushButton::clicked, this, &MainWindow::showAboutDialog);
     connect(helpButton, &QPushButton::clicked, this, &MainWindow::showHelpDialog);
@@ -615,6 +652,7 @@ void MainWindow::connectSignals()
     connect(positionSlider, &QSlider::sliderReleased, this, [this]() {
         sliderPressed = false;
         audioPlayer.seek(positionSlider->value());
+        waveformWidget->setPosition(positionSlider->value());
         savePlaybackSnapshot();
         showTransientFeedback(QString("Seek %1").arg(formatTime(positionSlider->value())));
     });
@@ -626,6 +664,7 @@ void MainWindow::connectSignals()
         if (!sliderPressed) {
             positionSlider->setValue(static_cast<int>(positionMs));
         }
+        waveformWidget->setPosition(positionMs);
         lyricsWidget->setPosition(positionMs);
         updateTimeLabel(positionMs, currentDurationMs);
         if (playlist.currentTrack() != nullptr
@@ -637,10 +676,12 @@ void MainWindow::connectSignals()
     connect(&audioPlayer, &AudioPlayer::durationChanged, this, [this](qint64 durationMs) {
         currentDurationMs = durationMs;
         positionSlider->setRange(0, static_cast<int>(durationMs));
+        waveformWidget->setDuration(durationMs);
         if (pendingRestorePositionMs >= 0) {
             const qint64 restoredPosition = qMin(pendingRestorePositionMs, qMax<qint64>(0, durationMs - 1000));
             audioPlayer.seek(restoredPosition);
             positionSlider->setValue(static_cast<int>(restoredPosition));
+            waveformWidget->setPosition(restoredPosition);
             lyricsWidget->setPosition(restoredPosition);
             updateTimeLabel(restoredPosition, durationMs);
             lastSavedPlaybackPositionMs = restoredPosition;
@@ -686,6 +727,7 @@ void MainWindow::connectSignals()
     connect(&audioPlayer, &AudioPlayer::playbackStateChanged, this, [this](bool playing) {
         updatePlayPauseButton(playing);
         lyricsWidget->setPlaybackActive(playing);
+        waveformWidget->setPlaybackActive(playing);
         statusLabel->setText(playing ? "Playing" : "Paused");
     });
     connect(&audioPlayer, &AudioPlayer::finished, this, &MainWindow::playNext);
@@ -717,6 +759,12 @@ void MainWindow::connectSignals()
         } else {
             QMessageBox::warning(this, "Transcode failed", message);
         }
+    });
+    connect(waveformDecoder, &QAudioDecoder::bufferReady, this, [this]() {
+        processWaveformBuffer(waveformDecoder->read());
+    });
+    connect(waveformDecoder, &QAudioDecoder::finished, this, [this]() {
+        waveformWidget->setEnergies(normalizedWaveform());
     });
 }
 
@@ -772,6 +820,7 @@ void MainWindow::toggleTheme()
     updateThemedIcons();
     updateCoverImage(currentCoverImage);
     lyricsWidget->setNightMode(nightMode);
+    waveformWidget->setNightMode(nightMode);
     statusLabel->setText(nightMode ? "Night mode" : "Day mode");
 }
 
@@ -1010,6 +1059,91 @@ void MainWindow::showHelpDialog()
     dialog.exec();
 }
 
+void MainWindow::showMvWindow()
+{
+    QDialog dialog(this);
+    dialog.setWindowTitle("Play MV");
+    dialog.setModal(false);
+    dialog.resize(720, 420);
+
+    const QString panelColor = nightMode ? "#171b24" : "#ffffff";
+    const QString textColor = nightMode ? "#edf2f7" : "#172033";
+    const QString mutedColor = nightMode ? "#aeb8c8" : "#61718a";
+    const QString cardColor = nightMode ? "#1f2530" : "#f7fafc";
+    const QString borderColor = nightMode ? "#303847" : "#d9e2ef";
+    const QString accent = nightMode ? "#8fb3ff" : "#1f6f78";
+    const QString buttonHover = nightMode ? "#303b4f" : "#e8f1fb";
+
+    dialog.setStyleSheet(QString(R"(
+        QDialog {
+            background: %1;
+            color: %2;
+            font-family: "Segoe UI", "Microsoft YaHei UI", sans-serif;
+            font-size: 13px;
+        }
+        QLabel {
+            background: transparent;
+            color: %2;
+        }
+        QLabel#mvTitle {
+            font-size: 22px;
+            font-weight: 800;
+        }
+        QLabel#mvHint {
+            color: %3;
+        }
+        QFrame#mvStage {
+            background: %4;
+            border: 1px solid %5;
+            border-radius: 14px;
+        }
+        QPushButton {
+            background: %4;
+            border: 1px solid %5;
+            border-radius: 10px;
+            color: %2;
+            padding: 8px 18px;
+            font-weight: 700;
+        }
+        QPushButton:hover {
+            background: %7;
+            border-color: %6;
+        }
+    )").arg(panelColor, textColor, mutedColor, cardColor, borderColor, accent, buttonHover));
+
+    auto *root = new QVBoxLayout(&dialog);
+    root->setContentsMargins(24, 22, 24, 20);
+    root->setSpacing(16);
+
+    auto *header = new QHBoxLayout;
+    auto *titleBlock = new QVBoxLayout;
+    titleBlock->setSpacing(2);
+
+    auto *title = new QLabel("Play MV", &dialog);
+    title->setObjectName("mvTitle");
+    auto *hint = new QLabel("Video playback window", &dialog);
+    hint->setObjectName("mvHint");
+    titleBlock->addWidget(title);
+    titleBlock->addWidget(hint);
+
+    auto *closeButton = new QPushButton("Close", &dialog);
+    closeButton->setCursor(Qt::PointingHandCursor);
+    connect(closeButton, &QPushButton::clicked, &dialog, &QDialog::accept);
+
+    header->addLayout(titleBlock);
+    header->addStretch();
+    header->addWidget(closeButton);
+
+    auto *stage = new QFrame(&dialog);
+    stage->setObjectName("mvStage");
+    stage->setMinimumHeight(290);
+
+    root->addLayout(header);
+    root->addWidget(stage, 1);
+
+    dialog.exec();
+}
+
 QString MainWindow::themeName() const
 {
     return nightMode ? "night" : "day";
@@ -1113,6 +1247,7 @@ void MainWindow::restorePlaybackSnapshot()
     pendingRestorePositionMs = qMax<qint64>(0, snapshot.positionMs);
     lastSavedPlaybackPositionMs = pendingRestorePositionMs;
     audioPlayer.setSource(track->filePath);
+    startWaveformDecode(track->filePath);
     refreshPlaylist();
     updateCurrentTrackView();
     updateCoverImage(QImage());
@@ -1146,6 +1281,7 @@ void MainWindow::applyRestoredPositionBeforePlayback()
         : pendingRestorePositionMs;
     audioPlayer.seek(restoredPosition);
     positionSlider->setValue(static_cast<int>(restoredPosition));
+    waveformWidget->setPosition(restoredPosition);
     lyricsWidget->setPosition(restoredPosition);
     updateTimeLabel(restoredPosition, currentDurationMs);
     lastSavedPlaybackPositionMs = restoredPosition;
@@ -1560,13 +1696,18 @@ void MainWindow::showPlaylistContextMenu(const QPoint &position)
 
     QMenu menu(this);
     QAction *playAction = menu.addAction("Play");
+    playAction->setIcon(QIcon(assetPath(QString("img/ui-icons/%1/play.256.png").arg(themeName()))));
     QAction *addAction = menu.addAction("Add to Playlist");
+    addAction->setIcon(QIcon(assetPath(QString("img/ui-icons/%1/add-to-playlist.256.png").arg(themeName()))));
     QAction *tagAction = menu.addAction("Edit Tags");
+    tagAction->setIcon(QIcon(assetPath(QString("img/ui-icons/%1/add-tag.256.png").arg(themeName()))));
     QAction *showAction = menu.addAction("Show in Folder");
+    showAction->setIcon(QIcon(assetPath(QString("img/ui-icons/%1/folder-locate.256.png").arg(themeName()))));
     QAction *removeAction = nullptr;
     if (activeCollectionType == "playlist") {
         menu.addSeparator();
         removeAction = menu.addAction("Remove from This Playlist");
+        removeAction->setIcon(QIcon(assetPath(QString("img/ui-icons/%1/playlist-delete.256.png").arg(themeName()))));
     }
 
     QAction *chosen = menu.exec(playlistWidget->viewport()->mapToGlobal(position));
@@ -1594,7 +1735,9 @@ void MainWindow::showPlaylistManageMenu()
 
     QMenu menu(this);
     QAction *renameAction = menu.addAction("Rename Playlist");
+    renameAction->setIcon(QIcon(assetPath(QString("img/ui-icons/%1/playlist-rename.256.png").arg(themeName()))));
     QAction *deleteAction = menu.addAction("Delete Playlist");
+    deleteAction->setIcon(QIcon(assetPath(QString("img/ui-icons/%1/playlist-delete.256.png").arg(themeName()))));
     QAction *chosen = menu.exec(managePlaylistButton->mapToGlobal(QPoint(0, managePlaylistButton->height())));
     if (chosen == renameAction) {
         renameActivePlaylist();
@@ -1828,6 +1971,7 @@ void MainWindow::playTrackAt(int index)
     lastSavedPlaybackPositionMs = -1;
     playlist.setCurrentIndex(index);
     audioPlayer.setSource(track->filePath);
+    startWaveformDecode(track->filePath);
     if (!sameTrack) {
         updateCoverImage(QImage());
     }
@@ -1872,6 +2016,7 @@ void MainWindow::updateCurrentTrackView()
         artistLabel->setText("Artist / Album");
         updateCoverImage(QImage());
         currentLyrics.clear();
+        waveformWidget->clear();
         lyricsWidget->setMessage("Lyrics will appear here");
         return;
     }
@@ -2119,6 +2264,90 @@ bool MainWindow::readTrackMetadata(Track *track) const
     return changed;
 }
 
+void MainWindow::startWaveformDecode(const QString &filePath)
+{
+    if (waveformDecoder == nullptr || filePath.trimmed().isEmpty()) {
+        return;
+    }
+
+    waveformDecoder->stop();
+    waveformBlocks.clear();
+    waveformAccumulatedEnergy = 0.0;
+    waveformAccumulatedFrames = 0;
+    waveformBlockFrames = 2048;
+    waveformWidget->clear();
+    waveformWidget->setDuration(currentDurationMs);
+
+    waveformDecoder->setSource(QUrl::fromLocalFile(filePath));
+    waveformDecoder->start();
+}
+
+void MainWindow::processWaveformBuffer(const QAudioBuffer &buffer)
+{
+    if (!buffer.isValid()) {
+        return;
+    }
+
+    const QAudioFormat format = buffer.format();
+    const int channels = qMax(1, format.channelCount());
+    const int sampleRate = qMax(1, format.sampleRate());
+    waveformBlockFrames = qMax(512, sampleRate / 24);
+
+    const char *data = buffer.constData<char>();
+    const qsizetype sampleCount = buffer.sampleCount();
+    const qsizetype frameCount = sampleCount / channels;
+
+    for (qsizetype frame = 0; frame < frameCount; ++frame) {
+        double frameEnergy = 0.0;
+        for (int channel = 0; channel < channels; ++channel) {
+            const double value = sampleValue(data, frame * channels + channel, format);
+            frameEnergy += value * value;
+        }
+        frameEnergy /= channels;
+        waveformAccumulatedEnergy += frameEnergy;
+        ++waveformAccumulatedFrames;
+
+        if (waveformAccumulatedFrames >= waveformBlockFrames) {
+            waveformBlocks.push_back(qSqrt(waveformAccumulatedEnergy / waveformAccumulatedFrames));
+            waveformAccumulatedEnergy = 0.0;
+            waveformAccumulatedFrames = 0;
+        }
+    }
+}
+
+QVector<double> MainWindow::normalizedWaveform() const
+{
+    QVector<double> blocks = waveformBlocks;
+    if (waveformAccumulatedFrames > 0) {
+        blocks.push_back(qSqrt(waveformAccumulatedEnergy / waveformAccumulatedFrames));
+    }
+    if (blocks.isEmpty()) {
+        return {};
+    }
+
+    const int targetCount = 150;
+    QVector<double> result;
+    result.reserve(targetCount);
+    for (int i = 0; i < targetCount; ++i) {
+        const int begin = i * blocks.size() / targetCount;
+        const int end = qMax(begin + 1, (i + 1) * blocks.size() / targetCount);
+        double peak = 0.0;
+        for (int j = begin; j < end && j < blocks.size(); ++j) {
+            peak = qMax(peak, blocks[j]);
+        }
+        result.push_back(peak);
+    }
+
+    const double maxValue = *std::max_element(result.cbegin(), result.cend());
+    if (maxValue <= 0.000001) {
+        return result;
+    }
+    for (double &value : result) {
+        value = qBound(0.03, qPow(value / maxValue, 0.65), 1.0);
+    }
+    return result;
+}
+
 QString MainWindow::formatTime(qint64 milliseconds) const
 {
     const qint64 totalSeconds = qMax<qint64>(0, milliseconds / 1000);
@@ -2157,10 +2386,20 @@ void MainWindow::applyBaseStyle()
     scanButton->setIconSize(QSize(18, 18));
     transcodeButton->setIcon(QIcon(assetPath(QString("img/ui-icons/%1/transcode.256.png").arg(themeName()))));
     transcodeButton->setIconSize(QSize(18, 18));
+    playMvButton->setIcon(QIcon(assetPath(QString("img/ui-icons/%1/video-play.256.png").arg(themeName()))));
+    playMvButton->setIconSize(QSize(18, 18));
     helpButton->setIcon(QIcon(assetPath(QString("img/ui-icons/%1/help.256.png").arg(themeName()))));
     helpButton->setIconSize(QSize(18, 18));
     aboutButton->setIcon(QIcon(assetPath(QString("img/ui-icons/%1/about.256.png").arg(themeName()))));
     aboutButton->setIconSize(QSize(18, 18));
+    newPlaylistButton->setIcon(QIcon(assetPath(QString("img/ui-icons/%1/playlist.256.png").arg(themeName()))));
+    newPlaylistButton->setIconSize(QSize(16, 16));
+    addToPlaylistButton->setIcon(QIcon(assetPath(QString("img/ui-icons/%1/add-to-playlist.256.png").arg(themeName()))));
+    addToPlaylistButton->setIconSize(QSize(16, 16));
+    tagButton->setIcon(QIcon(assetPath(QString("img/ui-icons/%1/add-tag.256.png").arg(themeName()))));
+    tagButton->setIconSize(QSize(16, 16));
+    managePlaylistButton->setIcon(QIcon(assetPath(QString("img/ui-icons/%1/playlist-manage.256.png").arg(themeName()))));
+    managePlaylistButton->setIconSize(QSize(16, 16));
     polishComboPopup(collectionCombo, nightMode ? "#1f2530" : "#ffffff");
     lyricsWidget->setNightMode(nightMode);
 
@@ -2290,6 +2529,10 @@ void MainWindow::applyBaseStyle()
             background: #ffffff;
             border: 1px solid #d9e2ef;
             border-radius: 14px;
+        }
+        WaveformWidget#waveformWidget {
+            background: transparent;
+            border: none;
         }
         QListWidget::item {
             background: transparent;
@@ -2676,6 +2919,10 @@ void MainWindow::applyBaseStyle()
             background: #141821;
             border: 1px solid #252c39;
             border-radius: 14px;
+        }
+        WaveformWidget#waveformWidget {
+            background: transparent;
+            border: none;
         }
         QListWidget::item {
             background: transparent;

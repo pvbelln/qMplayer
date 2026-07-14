@@ -38,6 +38,8 @@ add_executable(${PROJECT_NAME}
     src/transcodedialog.h
     src/transcoder.cpp
     src/transcoder.h
+    src/waveformwidget.cpp
+    src/waveformwidget.h
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

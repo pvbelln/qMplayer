@@ -13,6 +13,8 @@
 #include <QWidget>
 
 class QLabel;
+class QAudioBuffer;
+class QAudioDecoder;
 class QCloseEvent;
 class QComboBox;
 class QKeyEvent;
@@ -22,6 +24,7 @@ class QLineEdit;
 class QPushButton;
 class QSlider;
 class LyricsWidget;
+class WaveformWidget;
 
 class MainWindow : public QWidget
 {
@@ -48,6 +51,7 @@ private:
     void toggleTheme();
     void showAboutDialog();
     void showHelpDialog();
+    void showMvWindow();
     QString themeName() const;
     bool handlePlaybackShortcut(QKeyEvent *event);
     bool handleKeyboardSeekRelease(QKeyEvent *event);
@@ -100,6 +104,9 @@ private:
     QString ffmpegPath() const;
     QVector<Track> scanAudioFiles(const QString &folderPath) const;
     bool readTrackMetadata(Track *track) const;
+    void startWaveformDecode(const QString &filePath);
+    void processWaveformBuffer(const QAudioBuffer &buffer);
+    QVector<double> normalizedWaveform() const;
     QString formatTime(qint64 milliseconds) const;
     bool matchesSearch(const Track &track) const;
 
@@ -113,6 +120,7 @@ private:
     QLabel *searchHintLabel = nullptr;
     QLabel *emptyLibraryLabel = nullptr;
     LyricsWidget *lyricsWidget = nullptr;
+    WaveformWidget *waveformWidget = nullptr;
     QLabel *timeLabel = nullptr;
     QLabel *feedbackLabel = nullptr;
     QLabel *statusLabel = nullptr;
@@ -124,6 +132,7 @@ private:
     QPushButton *nextButton = nullptr;
     QPushButton *scanButton = nullptr;
     QPushButton *transcodeButton = nullptr;
+    QPushButton *playMvButton = nullptr;
     QPushButton *themeButton = nullptr;
     QPushButton *aboutButton = nullptr;
     QPushButton *helpButton = nullptr;
@@ -142,6 +151,11 @@ private:
     QVector<int> visibleTrackIndexes;
     AudioPlayer audioPlayer;
     Transcoder transcoder;
+    QAudioDecoder *waveformDecoder = nullptr;
+    QVector<double> waveformBlocks;
+    double waveformAccumulatedEnergy = 0.0;
+    int waveformAccumulatedFrames = 0;
+    int waveformBlockFrames = 2048;
     Lyrics currentLyrics;
     std::vector<std::unique_ptr<PlaybackStrategy>> playbackStrategies;
     int playbackStrategyIndex = 0;

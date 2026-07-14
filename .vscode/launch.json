@@ -1,0 +1,23 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug (Qt MinGW)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${command:cmake.launchTargetPath}",
+            "cwd": "${workspaceFolder}",
+            "MIMode": "gdb",
+            // 替换成你的 MinGW GDB 调试器路径
+            "miDebuggerPath": "D:/Qt/Tools/mingw1310_64/bin/gdb.exe",
+            "environment": [
+                {
+                    "name": "PATH",
+                    // 替换成你的 MinGW bin 路径，和 Qt 套件 bin 路径
+                    "value": "D:/Qt/6.11.1/mingw_64/bin;D:/Qt/Tools/mingw1310_64/bin;${env:PATH}"
+                }
+            ],
+            "externalConsole": false
+        }
+    ]
+}

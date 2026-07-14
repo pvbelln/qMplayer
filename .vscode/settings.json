@@ -1,0 +1,6 @@
+{
+    "cmake.configureSettings": {
+        // 替换成你的 Qt 套件路径
+        "CMAKE_PREFIX_PATH": "D:/Qt/6.11.1/mingw_64"
+    }
+}

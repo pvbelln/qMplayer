@@ -168,13 +168,13 @@ src/
 - Qt Framework  
   用途：GUI、Widgets、多媒体播放、视频输出、JSON、路径和进程管理。  
   版权者：The Qt Company Ltd. and Qt contributors。  
-  许可证：商业许可证 / LGPL / GPL，取决于使用和发布方式。  
+  许可证：LGPL 
   官网：`https://www.qt.io/`
 
 - FFmpeg  
   用途：音频转码。  
   版权者：FFmpeg developers。  
-  许可证：主要为 LGPL，部分构建可能包含 GPL 组件。  
+  许可证：LGPL
   官网：`https://ffmpeg.org/`
 
 - Player Icons  
@@ -191,7 +191,7 @@ src/
 
 - 专辑占位图片  
   用途：当音乐文件没有内嵌专辑封面时显示。  
-  来源：AI 生成图片。
+  来源：AI 生成。
 
 ## 十、建议测试流程
 

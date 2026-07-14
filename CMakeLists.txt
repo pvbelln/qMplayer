@@ -9,10 +9,11 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(QT NAMES Qt6 Qt5 COMPONENTS Core Gui Widgets Multimedia REQUIRED)
-find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Core Gui Widgets Multimedia REQUIRED)
+find_package(QT NAMES Qt6 Qt5 COMPONENTS Core Gui Widgets Multimedia MultimediaWidgets REQUIRED)
+find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Core Gui Widgets Multimedia MultimediaWidgets REQUIRED)
 
 add_executable(${PROJECT_NAME}
+    resources/app.rc
     src/main.cpp
     src/audioplayer.cpp
     src/audioplayer.h
@@ -33,6 +34,8 @@ add_executable(${PROJECT_NAME}
     src/mainwindow_ui.cpp
     src/mainwindow_waveform.cpp
     src/mainwindow.h
+    src/mvplayerdialog.cpp
+    src/mvplayerdialog.h
     src/playbackstrategy.cpp
     src/playbackstrategy.h
     src/playlist.cpp
@@ -58,6 +61,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt${QT_VERSION_MAJOR}::Gui
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Multimedia
+    Qt${QT_VERSION_MAJOR}::MultimediaWidgets
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE

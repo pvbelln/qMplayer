@@ -155,6 +155,7 @@ void MainWindow::buildUi()
     playlistWidget->setObjectName("playlistWidget");
     playlistWidget->setCursor(Qt::PointingHandCursor);
     playlistWidget->setAlternatingRowColors(false);
+    playlistWidget->setSelectionMode(QAbstractItemView::ExtendedSelection);
     playlistWidget->setSpacing(4);
     playlistWidget->setUniformItemSizes(false);
     playlistWidget->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -254,9 +255,9 @@ void MainWindow::buildUi()
     timeLabel->setObjectName("timeLabel");
     feedbackLabel = new QLabel(this);
     feedbackLabel->setObjectName("feedbackLabel");
-    feedbackLabel->setMinimumWidth(96);
-    feedbackLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    feedbackLabel->hide();
+    feedbackLabel->setFixedHeight(18);
+    feedbackLabel->setAlignment(Qt::AlignCenter);
+    feedbackLabel->setText("");
     muteButton = new QPushButton(this);
     volumeSlider = new QSlider(Qt::Horizontal, this);
     volumeSlider->setObjectName("volumeSlider");
@@ -301,7 +302,6 @@ void MainWindow::buildUi()
     progressStack->addWidget(positionSlider);
     playbackLayout->addLayout(progressStack, 1);
     playbackLayout->addWidget(timeLabel);
-    playbackLayout->addWidget(feedbackLabel);
     playbackLayout->addWidget(muteButton);
     playbackLayout->addWidget(volumeSlider);
 
@@ -394,6 +394,22 @@ void MainWindow::connectSignals()
         keyboardSeekWasPlaying = false;
         sliderPressed = true;
     });
+    connect(positionSlider, &QSlider::sliderMoved, this, [this](int value) {
+        if (!sliderPressed) {
+            return;
+        }
+        const qint64 previewPosition = qBound<qint64>(0, static_cast<qint64>(value), currentDurationMs);
+        waveformWidget->setPosition(previewPosition);
+        updateTimeLabel(previewPosition, currentDurationMs);
+    });
+    connect(positionSlider, &QSlider::valueChanged, this, [this](int value) {
+        if (!sliderPressed) {
+            return;
+        }
+        const qint64 previewPosition = qBound<qint64>(0, static_cast<qint64>(value), currentDurationMs);
+        waveformWidget->setPosition(previewPosition);
+        updateTimeLabel(previewPosition, currentDurationMs);
+    });
     connect(positionSlider, &QSlider::sliderReleased, this, [this]() {
         sliderPressed = false;
         audioPlayer.seek(positionSlider->value());
@@ -406,9 +422,10 @@ void MainWindow::connectSignals()
         if (keyboardSeekTargetMs >= 0) {
             return;
         }
-        if (!sliderPressed) {
-            positionSlider->setValue(static_cast<int>(positionMs));
+        if (sliderPressed) {
+            return;
         }
+        positionSlider->setValue(static_cast<int>(positionMs));
         waveformWidget->setPosition(positionMs);
         lyricsWidget->setPosition(positionMs);
         updateTimeLabel(positionMs, currentDurationMs);

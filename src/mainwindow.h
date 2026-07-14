@@ -71,14 +71,18 @@ private:
     void refreshCollectionCombo();
     void createUserPlaylist();
     void addSelectedTrackToPlaylist();
+    void addTracksToPlaylist(const QVector<int> &trackIndexes);
     void editSelectedTrackTags();
     void showPlaylistContextMenu(const QPoint &position);
     void showPlaylistManageMenu();
     void renameActivePlaylist();
     void deleteActivePlaylist();
     void removeTrackFromActivePlaylist(int trackIndex);
+    void removeTracksFromActivePlaylist(const QVector<int> &trackIndexes);
+    void removeSelectedTracksFromLibrary();
     void showTrackInFolder(int trackIndex);
     int selectedOrCurrentTrackIndex() const;
+    QVector<int> selectedTrackIndexes() const;
     bool trackVisibleInCurrentCollection(const Track &track) const;
     QString collectionKey(const QString &type, const QString &value = QString()) const;
     QString currentCollectionLabel() const;
@@ -151,6 +155,7 @@ private:
     LibraryStore libraryStore;
     QVector<UserPlaylist> userPlaylists;
     QVector<int> visibleTrackIndexes;
+    QVector<int> contextMenuTrackIndexes;
     AudioPlayer audioPlayer;
     Transcoder transcoder;
     QAudioDecoder *waveformDecoder = nullptr;

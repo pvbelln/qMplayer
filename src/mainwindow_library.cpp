@@ -456,11 +456,35 @@ bool MainWindow::trackVisibleInCurrentCollection(const Track &track) const
 }
 int MainWindow::selectedOrCurrentTrackIndex() const
 {
-    if (playlistWidget != nullptr && !playlistWidget->selectedItems().isEmpty()) {
-        return playlistWidget->selectedItems().first()->data(Qt::UserRole).toInt();
+    const QVector<int> indexes = selectedTrackIndexes();
+    if (!indexes.isEmpty()) {
+        return indexes.first();
     }
     const int currentIndex = playlist.currentIndex();
     return visibleTrackIndexes.contains(currentIndex) ? currentIndex : -1;
+}
+QVector<int> MainWindow::selectedTrackIndexes() const
+{
+    if (!contextMenuTrackIndexes.isEmpty()) {
+        return contextMenuTrackIndexes;
+    }
+
+    QVector<int> indexes;
+    if (playlistWidget == nullptr) {
+        return indexes;
+    }
+
+    for (QListWidgetItem *item : playlistWidget->selectedItems()) {
+        if (item == nullptr) {
+            continue;
+        }
+        const int index = item->data(Qt::UserRole).toInt();
+        if (index >= 0 && !indexes.contains(index)) {
+            indexes.append(index);
+        }
+    }
+    std::sort(indexes.begin(), indexes.end());
+    return indexes;
 }
 void MainWindow::createUserPlaylist()
 {
@@ -501,15 +525,34 @@ void MainWindow::createUserPlaylist()
 }
 void MainWindow::addSelectedTrackToPlaylist()
 {
-    const int trackIndex = selectedOrCurrentTrackIndex();
-    const Track *track = playlist.trackAt(trackIndex);
-    if (track == nullptr) {
+    const QVector<int> indexes = selectedTrackIndexes();
+    if (indexes.isEmpty()) {
         QMessageBox::information(this, "Playlist", "Select a song before adding it to a playlist.");
         return;
     }
-    if (userPlaylists.isEmpty()) {
-        createUserPlaylist();
+    addTracksToPlaylist(indexes);
+}
+void MainWindow::addTracksToPlaylist(const QVector<int> &trackIndexes)
+{
+    if (trackIndexes.isEmpty()) {
+        QMessageBox::information(this, "Playlist", "Select one or more songs before adding them to a playlist.");
         return;
+    }
+    if (userPlaylists.isEmpty()) {
+        bool ok = false;
+        const QString newName = QInputDialog::getText(this, "New playlist", "Playlist name:", QLineEdit::Normal, QString(), &ok).trimmed();
+        if (!ok || newName.isEmpty()) {
+            return;
+        }
+        for (const UserPlaylist &userPlaylist : userPlaylists) {
+            if (userPlaylist.name.compare(newName, Qt::CaseInsensitive) == 0) {
+                QMessageBox::information(this, "Playlist", "A playlist with this name already exists. Choose a different name.");
+                return;
+            }
+        }
+        UserPlaylist userPlaylist;
+        userPlaylist.name = newName;
+        userPlaylists.push_back(userPlaylist);
     }
 
     QStringList names;
@@ -523,18 +566,38 @@ void MainWindow::addSelectedTrackToPlaylist()
         return;
     }
 
-    const QString absolutePath = QFileInfo(track->filePath).absoluteFilePath();
+    QStringList absolutePaths;
+    for (const int trackIndex : trackIndexes) {
+        const Track *track = playlist.trackAt(trackIndex);
+        if (track == nullptr) {
+            continue;
+        }
+        const QString absolutePath = QFileInfo(track->filePath).absoluteFilePath();
+        if (!absolutePaths.contains(absolutePath)) {
+            absolutePaths.append(absolutePath);
+        }
+    }
+    if (absolutePaths.isEmpty()) {
+        return;
+    }
+
     for (UserPlaylist &userPlaylist : userPlaylists) {
         if (userPlaylist.name == name) {
-            if (!userPlaylist.filePaths.contains(absolutePath)) {
-                userPlaylist.filePaths.append(absolutePath);
+            int added = 0;
+            for (const QString &absolutePath : absolutePaths) {
+                if (!userPlaylist.filePaths.contains(absolutePath)) {
+                    userPlaylist.filePaths.append(absolutePath);
+                    ++added;
+                }
+            }
+            if (added > 0) {
                 libraryStore.saveUserPlaylists(userPlaylists);
             }
             activeCollectionType = "playlist";
             activeCollectionValue = name;
             refreshCollectionCombo();
             refreshPlaylist();
-            showTransientFeedback(QString("Added to \"%1\"").arg(name));
+            showTransientFeedback(QString("Added %1 song(s) to \"%2\"").arg(absolutePaths.size()).arg(name));
             return;
         }
     }
@@ -546,45 +609,62 @@ void MainWindow::showPlaylistContextMenu(const QPoint &position)
         return;
     }
 
-    playlistWidget->setCurrentItem(item);
-    item->setSelected(true);
+    if (!item->isSelected()) {
+        playlistWidget->clearSelection();
+        item->setSelected(true);
+        playlistWidget->setCurrentItem(item);
+    } else {
+        playlistWidget->setCurrentItem(item, QItemSelectionModel::NoUpdate);
+    }
     const int trackIndex = item->data(Qt::UserRole).toInt();
     const Track *track = playlist.trackAt(trackIndex);
     if (track == nullptr) {
         return;
     }
+    const QVector<int> selectedIndexes = selectedTrackIndexes();
+    const bool batchMode = selectedIndexes.size() > 1;
 
     QMenu menu(this);
-    QAction *playAction = menu.addAction("Play");
+    QAction *playAction = menu.addAction(batchMode ? "Play First Selected" : "Play");
     playAction->setIcon(QIcon(assetPath(QString("img/ui-icons/%1/play.256.png").arg(themeName()))));
-    QAction *addAction = menu.addAction("Add to Playlist");
+    QAction *addAction = menu.addAction(batchMode ? "Add Selected to Playlist" : "Add to Playlist");
     addAction->setIcon(QIcon(assetPath(QString("img/ui-icons/%1/add-to-playlist.256.png").arg(themeName()))));
-    QAction *tagAction = menu.addAction("Edit Tags");
-    tagAction->setIcon(QIcon(assetPath(QString("img/ui-icons/%1/add-tag.256.png").arg(themeName()))));
-    QAction *showAction = menu.addAction("Show in Folder");
-    showAction->setIcon(QIcon(assetPath(QString("img/ui-icons/%1/folder-locate.256.png").arg(themeName()))));
+    QAction *tagAction = nullptr;
+    QAction *showAction = nullptr;
+    if (!batchMode) {
+        tagAction = menu.addAction("Edit Tags");
+        tagAction->setIcon(QIcon(assetPath(QString("img/ui-icons/%1/add-tag.256.png").arg(themeName()))));
+        showAction = menu.addAction("Show in Folder");
+        showAction->setIcon(QIcon(assetPath(QString("img/ui-icons/%1/folder-locate.256.png").arg(themeName()))));
+    }
+    QAction *removeFromLibraryAction = menu.addAction(batchMode ? "Remove Selected from Library" : "Remove from Library");
+    removeFromLibraryAction->setIcon(QIcon(assetPath(QString("img/ui-icons/%1/trash-can.256.png").arg(themeName()))));
     QAction *removeAction = nullptr;
     if (activeCollectionType == "playlist") {
         menu.addSeparator();
-        removeAction = menu.addAction("Remove from This Playlist");
+        removeAction = menu.addAction(batchMode ? "Remove Selected from This Playlist" : "Remove from This Playlist");
         removeAction->setIcon(QIcon(assetPath(QString("img/ui-icons/%1/playlist-delete.256.png").arg(themeName()))));
     }
 
     QAction *chosen = menu.exec(playlistWidget->viewport()->mapToGlobal(position));
     if (chosen == nullptr) {
+        contextMenuTrackIndexes.clear();
         return;
     }
     if (chosen == playAction) {
-        playTrackAt(trackIndex);
+        playTrackAt(selectedIndexes.isEmpty() ? trackIndex : selectedIndexes.first());
     } else if (chosen == addAction) {
-        addSelectedTrackToPlaylist();
+        addTracksToPlaylist(selectedIndexes);
     } else if (chosen == tagAction) {
         editSelectedTrackTags();
     } else if (chosen == showAction) {
         showTrackInFolder(trackIndex);
+    } else if (chosen == removeFromLibraryAction) {
+        removeSelectedTracksFromLibrary();
     } else if (chosen == removeAction) {
-        removeTrackFromActivePlaylist(trackIndex);
+        removeTracksFromActivePlaylist(selectedIndexes.isEmpty() ? QVector<int>{trackIndex} : selectedIndexes);
     }
+    contextMenuTrackIndexes.clear();
 }
 void MainWindow::showPlaylistManageMenu()
 {
@@ -672,28 +752,121 @@ void MainWindow::deleteActivePlaylist()
 }
 void MainWindow::removeTrackFromActivePlaylist(int trackIndex)
 {
+    removeTracksFromActivePlaylist(QVector<int>{trackIndex});
+}
+void MainWindow::removeTracksFromActivePlaylist(const QVector<int> &trackIndexes)
+{
     if (activeCollectionType != "playlist") {
         return;
     }
-    const Track *track = playlist.trackAt(trackIndex);
-    if (track == nullptr) {
+    if (trackIndexes.isEmpty()) {
         return;
     }
 
-    const QString absolutePath = QFileInfo(track->filePath).absoluteFilePath();
+    QStringList absolutePaths;
+    for (const int trackIndex : trackIndexes) {
+        const Track *track = playlist.trackAt(trackIndex);
+        if (track == nullptr) {
+            continue;
+        }
+        const QString absolutePath = QFileInfo(track->filePath).absoluteFilePath();
+        if (!absolutePaths.contains(absolutePath)) {
+            absolutePaths.append(absolutePath);
+        }
+    }
+    if (absolutePaths.isEmpty()) {
+        return;
+    }
+
     for (UserPlaylist &userPlaylist : userPlaylists) {
         if (userPlaylist.name.compare(activeCollectionValue, Qt::CaseInsensitive) != 0) {
             continue;
         }
-        const int removed = userPlaylist.filePaths.removeAll(absolutePath);
+        int removed = 0;
+        for (const QString &absolutePath : absolutePaths) {
+            removed += userPlaylist.filePaths.removeAll(absolutePath);
+        }
         if (removed > 0) {
             libraryStore.saveUserPlaylists(userPlaylists);
             refreshCollectionCombo();
             refreshPlaylist();
-            showTransientFeedback("Removed from playlist");
+            showTransientFeedback(QString("Removed %1 song(s) from playlist").arg(removed));
         }
         return;
     }
+}
+void MainWindow::removeSelectedTracksFromLibrary()
+{
+    const QVector<int> indexes = selectedTrackIndexes();
+    if (indexes.isEmpty()) {
+        QMessageBox::information(this, "Library", "Select one or more songs before removing them from the library.");
+        return;
+    }
+
+    const QMessageBox::StandardButton choice = QMessageBox::warning(
+        this,
+        "Remove from library",
+        QString("Remove %1 selected song(s) from the library?\n\nThis operation only removes entries from MPlayer's library and playlists. It will not delete any files from your computer.")
+            .arg(indexes.size()),
+        QMessageBox::Yes | QMessageBox::No,
+        QMessageBox::No);
+    if (choice != QMessageBox::Yes) {
+        return;
+    }
+
+    QSet<QString> removePaths;
+    for (const int index : indexes) {
+        const Track *track = playlist.trackAt(index);
+        if (track != nullptr) {
+            removePaths.insert(QFileInfo(track->filePath).absoluteFilePath());
+        }
+    }
+    if (removePaths.isEmpty()) {
+        return;
+    }
+
+    const QString previousCurrentPath = playlist.currentTrack() == nullptr
+        ? QString()
+        : QFileInfo(playlist.currentTrack()->filePath).absoluteFilePath();
+    const bool removedCurrentTrack = removePaths.contains(previousCurrentPath);
+
+    QVector<Track> remainingTracks;
+    remainingTracks.reserve(playlist.count());
+    for (const Track &track : playlist.tracks()) {
+        if (!removePaths.contains(QFileInfo(track.filePath).absoluteFilePath())) {
+            remainingTracks.push_back(track);
+        }
+    }
+
+    playlist.setTracks(remainingTracks);
+    if (!removedCurrentTrack && !previousCurrentPath.isEmpty()) {
+        const int newCurrentIndex = findTrackIndexByPath(previousCurrentPath);
+        if (newCurrentIndex >= 0) {
+            playlist.setCurrentIndex(newCurrentIndex);
+        }
+    } else {
+        audioPlayer.stop();
+        pendingRestorePositionMs = -1;
+        currentPlaybackPath.clear();
+    }
+
+    for (UserPlaylist &userPlaylist : userPlaylists) {
+        QStringList filteredPaths;
+        for (const QString &path : userPlaylist.filePaths) {
+            if (!removePaths.contains(QFileInfo(path).absoluteFilePath()) && !filteredPaths.contains(path)) {
+                filteredPaths.append(path);
+            }
+        }
+        userPlaylist.filePaths = filteredPaths;
+    }
+
+    saveLibrary();
+    libraryStore.saveUserPlaylists(userPlaylists);
+    refreshCollectionCombo();
+    refreshPlaylist();
+    updateCurrentTrackView();
+    savePlaybackSnapshot();
+    showTransientFeedback(QString("Removed %1 song(s) from library").arg(removePaths.size()));
 }
 void MainWindow::showTrackInFolder(int trackIndex)
 {

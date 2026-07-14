@@ -16,6 +16,7 @@
 #include <QCloseEvent>
 #include <QComboBox>
 #include <QCoreApplication>
+#include <QContextMenuEvent>
 #include <QDesktopServices>
 #include <QDialog>
 #include <QFileDialog>
@@ -33,6 +34,7 @@
 #include <QMediaMetaData>
 #include <QMediaPlayer>
 #include <QMessageBox>
+#include <QMouseEvent>
 #include <QPixmap>
 #include <QPushButton>
 #include <QSettings>
@@ -76,6 +78,37 @@ void MainWindow::closeEvent(QCloseEvent *event)
 }
 bool MainWindow::eventFilter(QObject *watched, QEvent *event)
 {
+    if (playlistWidget != nullptr && watched == playlistWidget->viewport()) {
+        if (event->type() == QEvent::MouseButtonPress) {
+            auto *mouseEvent = static_cast<QMouseEvent *>(event);
+            if (mouseEvent->button() != Qt::RightButton) {
+                contextMenuTrackIndexes.clear();
+            } else {
+                const QPoint viewportPos = playlistWidget->viewport()->mapFromGlobal(mouseEvent->globalPosition().toPoint());
+                QListWidgetItem *item = playlistWidget->viewport()->rect().contains(viewportPos)
+                    ? playlistWidget->itemAt(viewportPos)
+                    : nullptr;
+                if (item != nullptr && item->isSelected() && playlistWidget->selectedItems().size() > 1) {
+                    contextMenuTrackIndexes = selectedTrackIndexes();
+                    return true;
+                }
+                contextMenuTrackIndexes.clear();
+            }
+        } else if (event->type() == QEvent::MouseButtonRelease && !contextMenuTrackIndexes.isEmpty()) {
+            auto *mouseEvent = static_cast<QMouseEvent *>(event);
+            if (mouseEvent->button() == Qt::RightButton) {
+                const QPoint viewportPos = playlistWidget->viewport()->mapFromGlobal(mouseEvent->globalPosition().toPoint());
+                showPlaylistContextMenu(viewportPos);
+                return true;
+            }
+        } else if (event->type() == QEvent::ContextMenu && !contextMenuTrackIndexes.isEmpty()) {
+            auto *contextEvent = static_cast<QContextMenuEvent *>(event);
+            const QPoint viewportPos = playlistWidget->viewport()->mapFromGlobal(contextEvent->globalPos());
+            showPlaylistContextMenu(viewportPos);
+            return true;
+        }
+    }
+
     if (event->type() == QEvent::MouseButtonPress && QApplication::activeWindow() == this) {
         QWidget *focusWidget = QApplication::focusWidget();
         if (focusWidget == searchEdit) {
@@ -142,16 +175,7 @@ void MainWindow::keyReleaseEvent(QKeyEvent *event)
 }
 void MainWindow::showTransientFeedback(const QString &message)
 {
-    if (feedbackLabel == nullptr) {
-        return;
-    }
-    feedbackLabel->setText(message);
-    feedbackLabel->show();
-    QTimer::singleShot(1400, this, [this, message]() {
-        if (feedbackLabel != nullptr && feedbackLabel->text() == message) {
-            feedbackLabel->hide();
-        }
-    });
+    Q_UNUSED(message)
 }
 QString MainWindow::themeName() const
 {

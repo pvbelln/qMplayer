@@ -69,3 +69,4 @@ library.json
 
 # Test media
 test-media/
+ffmpeg/

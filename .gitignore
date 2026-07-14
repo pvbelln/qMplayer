@@ -57,6 +57,7 @@ Desktop.ini
 *.VC.VC.opendb
 
 # VS Code local machine state
+.vscode/
 .vscode/.cmake/
 .vscode/ipch/
 

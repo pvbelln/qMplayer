@@ -35,6 +35,7 @@ public:
 signals:
     void jumpRequested(qint64 positionMs);
     void loadLrcRequested();
+    void lyricsContextMenuRequested(const QPoint &globalPosition);
 
 protected:
     bool event(QEvent *event) override;

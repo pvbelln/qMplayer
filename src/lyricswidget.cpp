@@ -167,7 +167,11 @@ bool LyricsWidget::event(QEvent *event)
 void LyricsWidget::mousePressEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::RightButton) {
-        emit loadLrcRequested();
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+        emit lyricsContextMenuRequested(event->globalPosition().toPoint());
+#else
+        emit lyricsContextMenuRequested(event->globalPos());
+#endif
         event->accept();
         return;
     }

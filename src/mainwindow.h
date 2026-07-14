@@ -97,7 +97,9 @@ private:
     void updateCoverImage(const QImage &coverImage);
     void updateTimeLabel(qint64 positionMs, qint64 durationMs);
     void loadLyricsForCurrentTrack();
+    void reloadLyricsForCurrentTrack();
     void chooseLyricsFileForCurrentTrack();
+    void showLyricsContextMenu(const QPoint &globalPosition);
     void applyLyricsFileToCurrentTrack(const QString &filePath);
     void adjustLyricsOffset(int deltaMs);
     QString lrcPathForTrack(const Track &track) const;

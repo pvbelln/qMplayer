@@ -25,6 +25,13 @@ add_executable(${PROJECT_NAME}
     src/lyricswidget.cpp
     src/lyricswidget.h
     src/mainwindow.cpp
+    src/mainwindow_dialogs.cpp
+    src/mainwindow_library.cpp
+    src/mainwindow_lyrics.cpp
+    src/mainwindow_playback.cpp
+    src/mainwindow_style.cpp
+    src/mainwindow_ui.cpp
+    src/mainwindow_waveform.cpp
     src/mainwindow.h
     src/playbackstrategy.cpp
     src/playbackstrategy.h

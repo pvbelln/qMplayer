@@ -166,7 +166,7 @@ void MainWindow::showAboutDialog()
     title->setObjectName("aboutTitle");
     auto *subtitle = new QLabel("Qt Desktop Music Player", &dialog);
     subtitle->setObjectName("aboutSubtitle");
-    auto *author = new QLabel("Author\nXuqi Zhu", &dialog);
+    auto *author = new QLabel("Author\nDavid Zhu", &dialog);
     author->setObjectName("aboutSection");
     auto *version = new QLabel(QString("Version %1\nCourse Project").arg(QCoreApplication::applicationVersion()), &dialog);
     version->setObjectName("aboutMeta");
@@ -187,7 +187,7 @@ void MainWindow::showAboutDialog()
         "========\n\n"
         "Program Overview\n"
         "----------------\n"
-        "qMplayer is a Qt-based desktop music player developed by Xuqi Zhu. It focuses on local media playback and library management, including folder scanning, metadata display, playlists, artist/album/tag organization, synchronized LRC lyrics, day/night themes, audio waveform visualization, FFmpeg-based transcoding, and local MV video playback.\n\n"
+        "qMplayer is a Qt-based desktop music player developed by David Zhu. It focuses on local media playback and library management, including folder scanning, metadata display, playlists, artist/album/tag organization, synchronized LRC lyrics, day/night themes, audio waveform visualization, FFmpeg-based transcoding, and local MV video playback.\n\n"
         "This application is a course project and is intended for learning, demonstration, and personal desktop use.\n\n"
         "Project Assets\n"
         "----------------\n\n"
@@ -210,7 +210,7 @@ void MainWindow::showAboutDialog()
         "License: Creative Commons Attribution 4.0 International (CC BY 4.0).\n"
         "Website: https://www.iconarchive.com/artist/danieledesantis.html\n"
         "License text: https://creativecommons.org/licenses/by/4.0/\n"
-        "Project note: Xuqi Zhu modified or added selected variants, including the single-loop icon and night theme icon variants.\n\n"
+        "Project note: David Zhu modified or added selected variants, including the single-loop icon and night theme icon variants.\n\n"
         "4. UI Icons\n"
         "Purpose: Folder, playlist, tag, help, about, theme, MV, lyric, timer, and related interface icons.\n"
         "Copyright holder: Pictogrammers contributors.\n"

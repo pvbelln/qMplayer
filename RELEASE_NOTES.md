@@ -47,4 +47,4 @@ The Release build, archive integrity, packaged dependencies, English-language pr
 
 Playback across all codecs and devices, interactive lyric and playlist workflows, video playback, and optional transcoding were not exhaustively tested in this release check.
 
-Developed by **Xuqi Zhu**. See the included `THIRD_PARTY_NOTICES.md` for component and asset credits.
+Developed by **David Zhu**. See the included `THIRD_PARTY_NOTICES.md` for component and asset credits.

@@ -2,7 +2,7 @@
 
 A desktop music player built with **C++17, Qt 6 Widgets, and Qt Multimedia**. Manage your local music library, follow synchronized lyrics, create playlists, switch themes, visualize audio, transcode files, and play local music videos.
 
-Developed by **Xuqi Zhu**, qMplayer began as a course project. The application and project documentation are in English. A portable Windows x64 package is provided for release.
+Developed by **David Zhu**, qMplayer began as a course project. The application and project documentation are in English. A portable Windows x64 package is provided for release.
 
 ## Features
 
@@ -167,6 +167,6 @@ When opening an issue, include your operating system, qMplayer version, reproduc
 
 ## Credits and licensing
 
-Author: **Xuqi Zhu**. Third-party components and assets belong to their respective authors. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and the license notices in the asset directories.
+Author: **David Zhu**. Third-party components and assets belong to their respective authors. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and the license notices in the asset directories.
 
 The project's own source code does not currently specify an open-source license. Third-party components remain subject to their respective licenses.

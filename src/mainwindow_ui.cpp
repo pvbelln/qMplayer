@@ -285,7 +285,7 @@ void MainWindow::buildUi()
     playMvButton->setToolTip("Open MV player");
     themeButton->setToolTip("Switch to night mode");
     helpButton->setToolTip("Help and shortcuts");
-    aboutButton->setToolTip("About MPlayer");
+    aboutButton->setToolTip("About qMplayer");
     lyricsOffsetLabel->setToolTip("Adjust the whole LRC timing when lyrics are not aligned with music");
     lyricsDelayMinusButton->setToolTip("Show each lyric line 0.5 seconds earlier");
     lyricsDelayPlusButton->setToolTip("Show each lyric line 0.5 seconds later");

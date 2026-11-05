@@ -54,7 +54,7 @@
 void MainWindow::showAboutDialog()
 {
     QDialog dialog(this);
-    dialog.setWindowTitle("About MPlayer");
+    dialog.setWindowTitle("About qMplayer");
     dialog.setModal(true);
     dialog.resize(760, 520);
 
@@ -156,19 +156,19 @@ void MainWindow::showAboutDialog()
     if (!logo.isNull()) {
         logoLabel->setPixmap(logo.scaled(124, 124, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     } else {
-        logoLabel->setText("MPlayer");
+        logoLabel->setText("qMplayer");
     }
 
     auto *left = new QVBoxLayout;
     left->setSpacing(10);
     left->addWidget(logoLabel, 0, Qt::AlignLeft);
-    auto *title = new QLabel("MPlayer", &dialog);
+    auto *title = new QLabel("qMplayer", &dialog);
     title->setObjectName("aboutTitle");
     auto *subtitle = new QLabel("Qt Desktop Music Player", &dialog);
     subtitle->setObjectName("aboutSubtitle");
     auto *author = new QLabel("Author\nXuqi Zhu", &dialog);
     author->setObjectName("aboutSection");
-    auto *version = new QLabel("Version 1.0\nCourse Project", &dialog);
+    auto *version = new QLabel(QString("Version %1\nCourse Project").arg(QCoreApplication::applicationVersion()), &dialog);
     version->setObjectName("aboutMeta");
     left->addWidget(title);
     left->addWidget(subtitle);
@@ -183,11 +183,11 @@ void MainWindow::showAboutDialog()
     aboutText->setAcceptRichText(false);
     aboutText->setLineWrapMode(QTextEdit::WidgetWidth);
     aboutText->setText(
-        "MPlayer\n"
-        "=======\n\n"
+        "qMplayer\n"
+        "========\n\n"
         "Program Overview\n"
         "----------------\n"
-        "MPlayer is a Qt-based desktop music player developed by Xuqi Zhu. It focuses on local media playback and library management, including folder scanning, metadata display, playlists, artist/album/tag organization, synchronized LRC lyrics, day/night themes, audio waveform visualization, FFmpeg-based transcoding, and local MV video playback.\n\n"
+        "qMplayer is a Qt-based desktop music player developed by Xuqi Zhu. It focuses on local media playback and library management, including folder scanning, metadata display, playlists, artist/album/tag organization, synchronized LRC lyrics, day/night themes, audio waveform visualization, FFmpeg-based transcoding, and local MV video playback.\n\n"
         "This application is a course project and is intended for learning, demonstration, and personal desktop use.\n\n"
         "Project Assets\n"
         "----------------\n\n"

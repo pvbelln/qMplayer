@@ -59,7 +59,7 @@ MainWindow::MainWindow(QWidget *parent)
     playbackStrategies.push_back(std::make_unique<ShuffleStrategy>());
     nightMode = QSettings().value("theme/nightMode", false).toBool();
 
-    setWindowTitle("MPlayer");
+    setWindowTitle("qMplayer");
     resize(1120, 720);
     buildUi();
     applyBaseStyle();

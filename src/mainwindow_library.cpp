@@ -806,7 +806,7 @@ void MainWindow::removeSelectedTracksFromLibrary()
     const QMessageBox::StandardButton choice = QMessageBox::warning(
         this,
         "Remove from library",
-        QString("Remove %1 selected song(s) from the library?\n\nThis operation only removes entries from MPlayer's library and playlists. It will not delete any files from your computer.")
+        QString("Remove %1 selected song(s) from the library?\n\nThis operation only removes entries from qMplayer's library and playlists. It will not delete any files from your computer.")
             .arg(indexes.size()),
         QMessageBox::Yes | QMessageBox::No,
         QMessageBox::No);

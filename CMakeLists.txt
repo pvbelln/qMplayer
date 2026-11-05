@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.19)
 
-project(MPlayer VERSION 1.0 LANGUAGES CXX)
+project(qMplayer VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -9,8 +9,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(QT NAMES Qt6 Qt5 COMPONENTS Core Gui Widgets Multimedia MultimediaWidgets REQUIRED)
-find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Core Gui Widgets Multimedia MultimediaWidgets REQUIRED)
+find_package(Qt6 COMPONENTS Core Gui Widgets Multimedia MultimediaWidgets REQUIRED)
 
 add_executable(${PROJECT_NAME}
     resources/app.rc
@@ -57,14 +56,19 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    Qt${QT_VERSION_MAJOR}::Core
-    Qt${QT_VERSION_MAJOR}::Gui
-    Qt${QT_VERSION_MAJOR}::Widgets
-    Qt${QT_VERSION_MAJOR}::Multimedia
-    Qt${QT_VERSION_MAJOR}::MultimediaWidgets
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Widgets
+    Qt6::Multimedia
+    Qt6::MultimediaWidgets
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
+    QMPLAYER_VERSION="${PROJECT_VERSION}"
     PROJECT_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets"
     PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}"
 )
+
+install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION .)
+install(DIRECTORY assets DESTINATION .)
+install(FILES README.md RELEASE_NOTES.md THIRD_PARTY_NOTICES.md DESTINATION .)

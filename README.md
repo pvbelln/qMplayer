@@ -1,205 +1,172 @@
-# MPlayer - Qt 音乐播放器课程项目
+# qMplayer
 
-本项目使用 Qt Widgets / Qt Multimedia 实现一个桌面音乐播放器，支持本地音乐曲库、播放控制、歌词同步、歌单管理、音频波形、批量转码和 MV 播放等功能。
+A desktop music player built with **C++17, Qt 6 Widgets, and Qt Multimedia**. Manage your local music library, follow synchronized lyrics, create playlists, switch themes, visualize audio, transcode files, and play local music videos.
 
-## 一、运行环境
+Developed by **Xuqi Zhu**, qMplayer began as a course project. The application and project documentation are in English. A portable Windows x64 package is provided for release.
 
-**本源码只在 Windows 11 环境下编译并运行通过，不保证在其他 OS 下能运行成功。**
+## Features
 
-推荐运行环境：
+| Area | Features |
+| --- | --- |
+| Music library | Recursively scan folders; read titles, artists, albums, duration, and embedded artwork; persist the library as JSON |
+| Playback | Play, pause, stop, skip tracks, seek, adjust volume, and mute |
+| Playback modes | Repeat all, repeat one, and shuffle |
+| Organization | Search by title, artist, album, filename, or tag; create and manage playlists; edit multiple selections |
+| LRC lyrics | Match same-name lyric files, load lyrics manually, highlight the current line, scroll, seek by clicking, and save timing offsets |
+| Appearance | Day and night themes, album artwork, and audio waveform visualization |
+| Batch transcoding | Queue files, select output formats, bitrates, and sample rates, and monitor, pause, or stop conversion; requires a separate FFmpeg executable |
+| Local music videos | Play videos in a separate window with seek and volume controls; pause music during video playback and resume it if it was previously playing |
+| Session restore | Save the library, playlists, lyric offsets, and playback position; restore playback in a paused state |
 
-- Windows 10/11
-- CMake 3.19 或更高版本
-- Qt 6.x MinGW 版本
-- MinGW 64-bit 工具链
+The library scanner recognizes `mp3`, `flac`, `wav`, `m4a`, `aac`, and `ogg` files. Actual decoding support depends on the Qt Multimedia backend and the media encoding.
 
-本项目开发时使用：
+## Download and run
+
+Download `qMplayer-v1.0.0-windows-x64.zip` from this repository's **Releases** page, extract the complete archive, and launch `qMplayer.exe`.
+
+Keep the DLLs, plugin folders, and `assets` next to the executable. A separate Qt installation is not required. The package is built on Windows 11 x64 with Qt 6.11.1 and MinGW 13.1.0; other Windows versions have not been verified.
 
 ```text
-Qt: D:/Qt/6.11.1/mingw_64
-MinGW: D:/Qt/Tools/mingw1310_64
+qMplayer-v1.0.0-windows-x64/
+|-- qMplayer.exe
+|-- Qt6*.dll               # Qt, compiler, and multimedia runtime libraries
+|-- platforms/             # Windows platform plugin
+|-- multimedia/            # Media backend plugins
+|-- imageformats/          # Image format plugins
+|-- assets/                # Icons, theme images, and resource notices
+|-- licenses/              # Third-party license material from the build environment
+|-- README.md
+|-- RELEASE_NOTES.md
+`-- THIRD_PARTY_NOTICES.md
 ```
 
-说明：Qt 6.11 不保证支持 Windows 7。若在 Windows 7 上运行，可能出现缺少 `GetCurrentPackageFullName` 等系统 API 的错误。建议使用 Windows 10/11 评分。
+### Quick start
 
-## 二、从源码编译
+1. Click **Add Folder** to import a local music folder.
+2. Double-click a song or press `Enter` to play it. Use the playback bar to seek, adjust volume, or change playback mode.
+3. Use the library selector to browse playlists, artists, albums, or tags. Right-click songs for management actions.
+4. Place a matching `.lrc` file beside the music file, or click **Load LRC File** to select lyrics manually.
+5. Click **Play MV** to open a local video. Use the transcoding dialog to convert audio files after configuring FFmpeg.
 
-在项目根目录打开 PowerShell，执行以下命令。
+### Keyboard shortcuts
+
+| Shortcut | Action |
+| --- | --- |
+| `Space` | Play / pause |
+| `Left` / `Right` | Seek backward / forward by 5 seconds; hold to continue seeking |
+| `Up` / `Down` | Adjust volume |
+| `PgUp` / `PgDn` | Previous / next track |
+| `Enter` | Play the selected song |
+| `Esc` | Clear search |
+| `Ctrl` / `Shift` + click | Select multiple songs |
+
+## Optional: enable batch transcoding
+
+Get a Windows build through the [FFmpeg download page](https://ffmpeg.org/download.html) and place the standalone command-line executable at:
+
+```text
+<directory containing qMplayer.exe>/ffmpeg/bin/ffmpeg.exe
+```
+
+During development, `<project root>/ffmpeg/bin/ffmpeg.exe` is also supported. The application checks the executable's directory first, then the source directory.
+
+The release package includes the media libraries needed by Qt's playback backend. It does not include the separate `ffmpeg.exe` used for batch transcoding. Music and video playback use Qt Multimedia.
+
+## Build from source
+
+Install CMake 3.19 or newer, Ninja, a Qt 6 MinGW 64-bit kit, and its matching MinGW toolchain. The required Qt modules are Core, Gui, Widgets, Multimedia, and MultimediaWidgets.
+
+Run PowerShell from the project root, adjusting the installation paths for your machine:
 
 ```powershell
-$env:Path='D:\Qt\6.11.1\mingw_64\bin;D:\Qt\Tools\mingw1310_64\bin;' + $env:Path
-cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH=D:/Qt/6.11.1/mingw_64
-cmake --build build
+$qtDir = 'D:\Qt\6.11.1\mingw_64'
+$mingwDir = 'D:\Qt\Tools\mingw1310_64'
+$env:Path = "$qtDir\bin;$mingwDir\bin;" + $env:Path
+
+cmake -S . -B build/release -G Ninja `
+  -DCMAKE_BUILD_TYPE=Release `
+  "-DCMAKE_PREFIX_PATH=$qtDir" `
+  "-DCMAKE_CXX_COMPILER=$mingwDir/bin/g++.exe"
+cmake --build build/release --parallel 4
+.\build\release\qMplayer.exe
 ```
 
-生成文件：
+Keep Qt's `bin` directory in `PATH` when running the development build. The project uses Qt 6 APIs.
 
-```text
-build/MPlayer.exe
-```
-
-如果您本机 Qt 安装路径不同，请把上述命令中的 `D:/Qt/6.11.1/mingw_64` 和 MinGW 路径替换为实际路径。
-
-## 三、运行方法
-
-编译后可直接运行：
+### Build the Windows release package
 
 ```powershell
-.\build\MPlayer.exe
+powershell -ExecutionPolicy Bypass -File scripts/package-windows.ps1 `
+  -QtDir 'D:\Qt\6.11.1\mingw_64' `
+  -MingwDir 'D:\Qt\Tools\mingw1310_64'
 ```
 
-程序运行数据保存在 Qt 的 `QStandardPaths::AppDataLocation` 下，通常类似：
+The script builds the Release target, installs the application and assets, deploys dependencies with `windeployqt`, and creates a ZIP archive and a SHA-256 checksum file:
 
 ```text
-C:\Users\<用户名>\AppData\Roaming\MPlayerProj\MPlayer\
+release/qMplayer-v1.0.0-windows-x64/
+release/qMplayer-v1.0.0-windows-x64.zip
+release/qMplayer-v1.0.0-windows-x64.zip.sha256
 ```
 
-其中保存曲库 JSON、歌单、歌词偏移和上次播放位置等数据。
+Release assets follow `<product>-v<major>.<minor>.<patch>-<os>-<architecture>.zip`, with lowercase `os` and architecture identifiers. For this release, use Git tag `v1.0.0` and title **qMplayer v1.0.0**. The ready-to-paste release description is in [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
-## 四、FFmpeg 获取与放置
+The output folder and archive must not already exist. To package another copy, choose a fresh output location with `-OutputDir release-next`. Upload the ZIP and its `.sha256` companion to GitHub Releases. Local `build/` and `release/` output and test media are excluded from Git.
 
-本项目的**音乐播放不依赖 FFmpeg**，播放由 Qt Multimedia 完成。  
-只有“转码”功能需要外部 `ffmpeg.exe`。
+Verify a downloaded archive in PowerShell:
 
-评分者如需测试转码功能，请自行下载 Windows 版 FFmpeg：
-
-```text
-https://ffmpeg.org/download.html
+```powershell
+(Get-FileHash .\qMplayer-v1.0.0-windows-x64.zip -Algorithm SHA256).Hash
+Get-Content .\qMplayer-v1.0.0-windows-x64.zip.sha256
 ```
 
-下载 Windows 预编译包后，将其中的 `ffmpeg.exe` 放置为：
+Compare the computed digest with the first field in the checksum file; letter case does not affect the comparison.
+
+## Application data
+
+The library, playlists, lyric offsets, and playback snapshot are stored at:
 
 ```text
-项目根目录/ffmpeg/bin/ffmpeg.exe
+%APPDATA%\qMplayer\qMplayer\library.json
 ```
 
-也就是：
+Theme preferences use `QSettings`. On Windows they are stored under the current user's registry key:
 
 ```text
-Mplayer-proj/
-  ffmpeg/
-    bin/
-      ffmpeg.exe
+HKEY_CURRENT_USER\Software\qMplayer\qMplayer
 ```
 
-如果测试的是部署后的 exe，也可放在：
+This version uses the qMplayer application identity. Data from earlier application identities is not migrated automatically. To retain an existing library, back up its `library.json`, close the application, and copy the file to the directory above. The referenced media files must remain accessible at their original paths.
+
+The portable package runs without an installer; application data is still stored in the system user profile.
+
+## Project structure
 
 ```text
-MPlayer.exe 同级目录/ffmpeg/bin/ffmpeg.exe
-```
-
-程序查找顺序为：先查找 exe 同级目录下的 `ffmpeg/bin/ffmpeg.exe`，再查找源码项目根目录下的 `ffmpeg/bin/ffmpeg.exe`。
-
-## 五、已实现的必做功能
-
-- 扫描本地音乐文件夹，支持递归扫描。
-- 支持 `mp3`、`flac`、`wav`、`m4a`、`aac`、`ogg` 等常见音频格式。
-- 曲库信息使用 JSON 持久化保存，重启后自动恢复。
-- 支持播放、暂停、停止、上一首、下一首。
-- 支持进度条点击、拖动 seek，并实时显示当前时间和总时长。
-- 支持音量调节和静音。
-- 读取并显示歌曲标题、歌手、专辑、时长等元数据。
-- 支持读取音乐文件内嵌专辑图片；没有封面时显示默认占位图。
-- 支持搜索过滤，可按标题、歌手、专辑、文件名、标签查找。
-- 支持三种播放模式：列表循环、单曲循环、随机播放。
-- 支持 LRC 歌词解析、自动匹配同名歌词、手动加载歌词。
-- 歌词支持同步高亮、平滑滚动、鼠标滚轮浏览、拖动浏览、点击歌词跳转。
-- 支持歌词偏移 `-0.5s` / `+0.5s` 调整并保存。
-- 支持程序启动时检测曲库文件是否仍可访问，并自动清理无效条目。
-- 支持记忆上次播放歌曲和播放位置，下次启动恢复到该位置并暂停。
-
-## 六、已实现的加分功能
-
-- day/night 双主题，并适配对应图标和占位图。
-- 自建歌单：新建、重命名、删除、添加歌曲。
-- 分类浏览：按歌手、专辑、自定义标签组织曲库。
-- 多选批量管理：`Shift` / `Ctrl` 多选歌曲，批量添加到歌单、从曲库移除、从当前歌单移除。
-- 音频波形 / 频谱显示：使用 `QAudioDecoder` 解码 PCM 数据，计算分段能量并绘制动态波形。
-- 批量转码：支持多文件队列、输出格式、码率、采样率、进度百分比、暂停和停止。
-- MV 播放：独立视频播放窗口，支持打开本地视频、播放/暂停、停止、进度拖动和音量控制。
-- 音乐与 MV 互斥播放：打开 MV 时自动暂停主界面音乐，关闭 MV 后恢复。
-- 自定义 About / Help 窗口。
-- 应用图标：通过 `resources/app.rc` 和 `assets/img/icon.ico` 设置 exe、窗口和任务栏图标。
-
-## 七、设计说明
-
-项目按功能拆分类和源文件。
-
-- `Track` 保存单首歌曲的路径、标题、歌手、专辑、标签、时长、歌词路径和歌词偏移；
-- `Playlist` 管理曲库列表和当前播放索引；`LibraryStore` 负责 JSON 持久化，包括曲库、用户歌单、播放快照和歌词偏移。
-- 播放部分由 `AudioPlayer` 封装，它组合 `QMediaPlayer` 与 `QAudioOutput`，对外提供播放、暂停、seek、音量和元数据变化信号。
-- 歌词部分由 `LrcParser`、`Lyrics` 和 `LyricsWidget` 组合完成，分别负责解析、存储和绘制交互。
-- 主窗口实现也拆分为 `mainwindow_ui.cpp`、`mainwindow_library.cpp`、`mainwindow_playback.cpp`、`mainwindow_lyrics.cpp`、`mainwindow_waveform.cpp` 等文件，便于维护。
-- **多态**主要用于播放模式：`PlaybackStrategy` 是抽象基类，列表循环、单曲循环和随机播放分别由不同子类实现，主窗口只依赖抽象接口取得下一首歌曲。
-- **最大难点**是歌词交互和播放同步：用户滚轮或拖动歌词时不能被播放进度立即拉回，而正常播放时又要自动居中当前句。解决方法是区分播放中心行和用户浏览偏移，并在用户停止操作后用定时器自动回到当前歌词。
-
-## 八、源码结构
-
-```text
-assets/
-  img/
-    icon.ico
-    album-placeholder-day.jpg
-    album-placeholder-night.jpg
-    player-logo.svg
-    player-icons/
-    ui-icons/
-resources/
-  app.rc
+assets/                       Icons, placeholder artwork, and theme resources
+resources/app.rc              Windows icon and version metadata
+scripts/package-windows.ps1   Windows release packaging script
 src/
-  main.cpp
-  mainwindow*.cpp / mainwindow.h
-  audioplayer.*
-  playlist.*
-  track.*
-  librarystore.*
-  playbackstrategy.*
-  lrcparser.*
-  lyrics.*
-  lyricswidget.*
-  waveformwidget.*
-  transcoder.*
-  transcodedialog.*
-  mvplayerdialog.*
+  main.cpp                    Application entry point
+  mainwindow*.cpp/.h          Main window, library, playback, lyrics, and theme logic
+  audioplayer.*               Qt Multimedia audio wrapper
+  librarystore.*              JSON persistence
+  track.* / playlist.*        Track and playback-list models
+  playbackstrategy.*          Repeat-all, repeat-one, and shuffle strategies
+  lrcparser.* / lyrics.* / lyricswidget.*  Lyric parsing and interaction
+  waveformwidget.*            Audio waveform display
+  transcoder.* / transcodedialog.*        Transcoding backend and queue UI
+  mvplayerdialog.*            Local video player
 ```
 
-## 九、第三方项目和资源
+## Testing and feedback
 
-- Qt Framework  
-  用途：GUI、Widgets、多媒体播放、视频输出、JSON、路径和进程管理。  
-  版权者：The Qt Company Ltd. and Qt contributors。  
-  许可证：LGPL 
-  官网：`https://www.qt.io/`
+Before publishing, check library import and search, playback and seeking, lyric synchronization and offsets, playlists and tags, theme switching, session restore, music/video playback coordination, and optional batch transcoding with your own media. A successful build and startup check do not establish compatibility with every codec or audio device.
 
-- FFmpeg  
-  用途：音频转码。  
-  版权者：FFmpeg developers。  
-  许可证：LGPL
-  官网：`https://ffmpeg.org/`
+When opening an issue, include your operating system, qMplayer version, reproduction steps, expected and actual behavior, media format, and relevant screenshots or error messages.
 
-- Player Icons  
-  用途：播放、暂停、停止、上一首、下一首、循环、随机、音量等控制按钮。  
-  版权者：Daniele De Santis。  
-  许可证：CC BY 4.0。  
-  来源：`https://www.iconarchive.com/artist/danieledesantis.html`
+## Credits and licensing
 
-- UI Icons  
-  用途：歌单、标签、帮助、关于、主题、MV、歌词、删除等界面图标。  
-  版权者：Pictogrammers contributors。  
-  许可证：Apache License 2.0 / MIT，详见 `assets/img/ui-icons/LICENSE.txt`。  
-  官网：`https://pictogrammers.com/`
+Author: **Xuqi Zhu**. Third-party components and assets belong to their respective authors. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and the license notices in the asset directories.
 
-- 专辑占位图片  
-  用途：当音乐文件没有内嵌专辑封面时显示。  
-  来源：AI 生成。
-
-## 十、建议测试流程
-
-1. 编译并运行程序。
-2. 点击 `Add Folder`，选择 `test-media` 或本地音乐文件夹。
-3. 双击歌曲测试播放、暂停、停止、切歌、进度拖动和音量。
-4. 测试搜索、歌单、标签、专辑/歌手分类。
-5. 测试歌词自动匹配、手动加载、右键 Reload / Load、滚轮浏览和点击跳转。
-6. 测试多选歌曲后右键批量添加到歌单、从曲库移除、从歌单移除。
-7. 如已放置 FFmpeg，测试批量转码功能。
-8. 测试 `Play MV` 打开视频文件，并确认音乐与 MV 不会同时播放。
+The project's own source code does not currently specify an open-source license. Third-party components remain subject to their respective licenses.

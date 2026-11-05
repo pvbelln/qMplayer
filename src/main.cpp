@@ -11,8 +11,9 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
-    QApplication::setApplicationName("MPlayer");
-    QApplication::setOrganizationName("MPlayerProj");
+    QApplication::setApplicationName("qMplayer");
+    QApplication::setApplicationVersion(QStringLiteral(QMPLAYER_VERSION));
+    QApplication::setOrganizationName("qMplayer");
     QApplication::setStyle(QStyleFactory::create("fusion"));
 
     const QString appIconPath = QDir(QCoreApplication::applicationDirPath()).filePath("assets/img/icon.ico");
